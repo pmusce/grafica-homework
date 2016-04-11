@@ -45,6 +45,13 @@ struct RECT
     char     text[10];
 };
 
+typedef struct vec3 vec3;
+struct vec3 {
+    float x;
+    float y;
+    float z;
+};
+
 RECT  menu[15];
 int   done=0;
 
@@ -173,12 +180,12 @@ void define_cube()
     add_edge(cube_verts[5], cube_verts[6]);
     add_edge(cube_verts[6], cube_verts[7]);
     add_edge(cube_verts[7], cube_verts[4]);
-    
+
     add_edge(cube_verts[0], cube_verts[4]);
     add_edge(cube_verts[1], cube_verts[5]);
     add_edge(cube_verts[2], cube_verts[6]);
     add_edge(cube_verts[3], cube_verts[7]);
-    
+
     add_edge(cube_verts[1], cube_verts[6]);
 }
 
@@ -203,8 +210,92 @@ void define_pyramid() {
     add_edge(base_verts[3], top_vert);
 }
 
+void calculate_vp(vec3 *vp) {
+    vp->x = D * sin(fi) * cos(teta);
+    vp->y = D * sin(fi) * sin(teta);
+    vp->z = D * cos(fi);
+}
+
+float norma(vec3 *v) {
+    return sqrt(pow(v->x, 2) + pow(v->y, 2) + pow(v->z, 2));
+}
+
+void normalize_vect(vec3 *v) {
+    float n = norma(v);
+    v->x = v->x / n;
+    v->y = v->y / n;
+    v->z = v->z / n;
+}
+
+void calculate_xaxis(vec3 *u, vec3 *v, vec3 *xaxis) {
+    xaxis->x = u->y * v->z - u->z * v->y;
+    xaxis->y = u->z * v->x - u->x * v->z;
+    xaxis->z = u->x * v->y - u->y * v->x;
+    normalize_vect(xaxis);
+}
+
+void calculate_yaxis(vec3 *u, vec3 *v, vec3 *yaxis) {
+    yaxis->x = -1 * (u->y * v->z - u->z * v->y);
+    yaxis->y = -1 * (u->z * v->x - u->x * v->z);
+    yaxis->z = -1 * (u->x * v->y - u->y * v->x);
+    normalize_vect(yaxis);
+}
+
+void calculate_zaxis(vec3 *vp, vec3 *target, vec3 *zaxis) {
+    zaxis->x = -1 * (vp->x - target->x);
+    zaxis->y = -1 * (vp->y - target->y);
+    zaxis->z = -1 * (vp->z - target->z);
+    normalize_vect(zaxis);
+}
+
+void trasf_view_up_vect(float x, float y, float z, float *xe, float *ye, float *ze) {
+    vec3 xaxis, yaxis, zaxis;
+    vec3 vp;
+    vec3 target;
+    vec3 view_up;
+    float M[4][4];
+
+    view_up.x = 0;
+    view_up.y = 1;
+    view_up.z = 0;
+
+    target.x = csx;
+    target.y = csy;
+    target.z = csz;
+
+    calculate_vp(&vp);
+    calculate_zaxis(&vp, &target, &zaxis);
+    calculate_xaxis(&zaxis, &view_up, &xaxis);
+    calculate_yaxis(&zaxis, &xaxis, &yaxis);
+
+ /* A */
+    M[0][0] = xaxis.x;
+    M[0][1] = yaxis.x;
+    M[0][2] = zaxis.x;
+    M[0][3] = 0;
+
+    M[1][0] = xaxis.y;
+    M[1][1] = yaxis.y;
+    M[1][2] = zaxis.y;
+    M[1][3] = 0;
+
+    M[2][0] = xaxis.z;
+    M[2][1] = yaxis.z;
+    M[2][2] = zaxis.z;
+    M[2][3] = 0;
+
+    M[3][0] = 0;
+    M[3][1] = 0;
+    M[3][2] = D;
+    M[3][3] = 1;
+
+    (*xe) = M[0][0] * x + M[1][0] * y + M[2][0] * z + M[3][0];
+    (*ye) = M[0][1] * x + M[1][1] * y + M[2][1] * z + M[3][1];
+    (*ze) = M[0][2] * x + M[1][2] * y + M[2][2] * z + M[3][2];
+}
+
 /* trasformazione prospettica a tre punti di fuga (generico punto di vista) */
-void trasf_prosp_gen(int *init,float x, float y, float z, 
+void trasf_prosp_gen(int *init,float x, float y, float z,
     float *xe, float *ye, float *ze)
 {
     static float steta,cteta,cfi,sfi;
@@ -218,7 +309,7 @@ void trasf_prosp_gen(int *init,float x, float y, float z,
         cfi=cos(fi);
     }
 
-    /* trasformazione in coordinate del sistema osservatore */	
+    /* trasformazione in coordinate del sistema osservatore */
     *xe = -steta*x + y*cteta;
     *ye = -cteta*cfi*x - y*steta*cfi + z*sfi;
     *ze = -x*cteta*sfi - y *steta*sfi - z*cfi + D;
@@ -279,9 +370,11 @@ void draw_mesh(SDL_Renderer *ren)
     /* il piano di proiezione viene definito a passare per l'origine */
     di=D;
     init=1;
+    printf("%f %f %f\n", csx, csy, csz);
     for (k=0;k<nvert;k++)
     {
-        trasf_prosp_gen(&init,x[k]-csx,y[k]-csy,z[k]-csz,&xe,&ye,&ze);
+        trasf_view_up_vect(x[k], y[k], z[k], &xe, &ye, &ze);
+        //trasf_prosp_gen(&init,xe-csx,ye-csy,ze-csz,&xe,&ye,&ze);
         /* proiezione e trasformazione in coordinate schermo */
         xs[k] = (int)(Sx * ((di * xe)/ze - xwmin) + xvmin + 0.5);
         ys[k] = (int)(Sy * (ywmin - (di * ye)/ze) + yvmax + 0.5);
@@ -296,7 +389,7 @@ void draw_mesh(SDL_Renderer *ren)
     }
 
     SDL_RenderPresent(ren);
-}				
+}
 
 void refresh_scene(SDL_Renderer *ren, SDL_Rect *sub_v) {
     SDL_SetRenderDrawColor(ren,255,255,255,255);
@@ -379,7 +472,7 @@ int main()
     draw_menu(menu,ren,font);
     nvert = nedge = 0;
     define_cube();   /* determinazione mesh oggetto */
-    define_pyramid();
+    //define_pyramid();
     define_view();  /*calcolo dei parametri di vista */
     draw_mesh(ren);
 
@@ -427,7 +520,7 @@ int main()
                 refresh_scene(ren, &sub_v);
                 break;
 
-            case FIWIN:  
+            case FIWIN:
                 tmpx = myevent.motion.x-(menu[2].rect.x+menu[2].rect.w/2);
                 tmpy = myevent.motion.y-(menu[2].rect.y+menu[2].rect.h/2);
                 SDL_SetRenderDrawColor(ren,255,255,255,255);
@@ -462,7 +555,7 @@ int main()
                 csy-=sr*ssy;
                 refresh_scene(ren, &sub_v);
                 break;
-                
+
             case LEFTWIN:
                 ssx=-sin(teta);
                 ssy=cos(teta);
@@ -470,7 +563,7 @@ int main()
                 csy+=sr*ssy;
                 refresh_scene(ren, &sub_v);
                 break;
-                
+
             case UPWIN:
                 ssx=-cos(fi)*cos(teta);
                 ssy=-cos(fi)*sin(teta);
@@ -479,8 +572,8 @@ int main()
                 csy+=sr*ssy;
                 csz+=sr*ssz;
                 refresh_scene(ren, &sub_v);
-                break;	
-                
+                break;
+
             case DOWNWIN:
                 ssx=-cos(fi)*cos(teta);
                 ssy=-cos(fi)*sin(teta);
@@ -490,36 +583,36 @@ int main()
                 csz-=sr*ssz;
                 refresh_scene(ren, &sub_v);
                 break;
-                
+
             case ZIWIN:
                 if (alpha-salpha >0)
                     alpha-=salpha;
                 refresh_scene(ren, &sub_v);
                 break;
-                
+
             case ZOWIN:
                 if (alpha+salpha <1.57)
                     alpha+=salpha;
                 refresh_scene(ren, &sub_v);
                 break;
-                
+
             case DZIWIN:
                 if (D-Dstep>0)
                     D-=Dstep;
                 refresh_scene(ren, &sub_v);
                 break;
-                
+
             case DZOWIN:
                 D+=Dstep;
                 refresh_scene(ren, &sub_v);
                 break;
             }
-            break;  
+            break;
 
         case SDL_KEYDOWN:
             if(myevent.key.keysym.sym == SDLK_ESCAPE)
                 done = 1;
-            break; 
+            break;
         }
         SDL_EventState(0xff, SDL_ENABLE);
     }
