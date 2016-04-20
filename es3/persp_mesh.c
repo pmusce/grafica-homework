@@ -18,13 +18,15 @@
 #define LEFTWIN     8
 #define UPWIN       9
 #define DOWNWIN     10
+#define VUPWIN      11
 
 /* Dati per visualizzare un oggetto definito solo da vertici e lati*/
 float   x[MAXVERT],y[MAXVERT],z[MAXVERT];       /* coordinate vertici */
 int     edge[MAXEDGE][2];                       /* lista lati */
 int     nvert,nedge;                            /* numero vertici e lati */
 float   csx,csy,csz;                            /* centro oggetto */
-float   D = 25,teta = 20,fi = 20,di;
+float   D = 25,teta = 1.57,fi = 20,di;
+vec3    view_up;
 int     xs[MAXVERT],ys[MAXVERT];                /* coordinate schermo */
 
 int 	xvmin,xvmax,yvmin,yvmax;	/* coordinate viewport */
@@ -67,31 +69,35 @@ void set_menu_opt(RECT *menu, int x, int y, int w, int h, char *text) {
 void init_menu(SDL_Renderer *ren, RECT menu[], float teta, float fi)
 {
     set_menu_opt(&menu[FINEWIN], 605, 550, 100, 30, "QUIT");
-    set_menu_opt(&menu[TETAWIN], 605, 20, 100, 100, "THETA");
-    set_menu_opt(&menu[FIWIN], 605, 150, 100, 100, "PHI");
-    set_menu_opt(&menu[ZIWIN], 602, 280, 50, 30, "ZoomI");
-    set_menu_opt(&menu[ZOWIN], 662, 280, 50, 30, "ZoomO");
-    set_menu_opt(&menu[DZIWIN], 602, 320, 50, 30, "DZoomI");
-    set_menu_opt(&menu[DZOWIN], 662, 320, 50, 30, "DZoomO");
-    set_menu_opt(&menu[RIGHTWIN], 662, 400, 50, 30, "RIGHT");
-    set_menu_opt(&menu[LEFTWIN], 602, 400, 50, 30, "LEFT");
-    set_menu_opt(&menu[UPWIN], 631, 360, 50, 30, "UP");
-    set_menu_opt(&menu[DOWNWIN], 631, 440, 50, 30, "DOWN");
+    set_menu_opt(&menu[TETAWIN], 605, 10, 100, 100, "THETA");
+    set_menu_opt(&menu[FIWIN], 605, 120, 100, 100, "PHI");
+    set_menu_opt(&menu[ZIWIN], 602, 340, 50, 30, "ZoomI");
+    set_menu_opt(&menu[ZOWIN], 662, 340, 50, 30, "ZoomO");
+    set_menu_opt(&menu[DZIWIN], 602, 380, 50, 30, "DZoomI");
+    set_menu_opt(&menu[DZOWIN], 662, 380, 50, 30, "DZoomO");
+    set_menu_opt(&menu[RIGHTWIN], 662, 460, 50, 30, "RIGHT");
+    set_menu_opt(&menu[LEFTWIN], 602, 460, 50, 30, "LEFT");
+    set_menu_opt(&menu[UPWIN], 631, 420, 50, 30, "UP");
+    set_menu_opt(&menu[DOWNWIN], 631, 500, 50, 30, "DOWN");
+    set_menu_opt(&menu[VUPWIN], 605, 230, 100, 100, "ViewUp");
 
     // draw teta and fi controller
-    SDL_RenderDrawLine(ren, menu[1].rect.x+menu[1].rect.w/2, menu[1].rect.y+menu[1].rect.h/2,
-        (int)(menu[1].rect.w/2)*cos(teta)+menu[1].rect.x+menu[1].rect.w/2,
-        (int)(menu[1].rect.h/2)*sin(teta)+menu[1].rect.y+menu[1].rect.h/2);
-    SDL_RenderDrawLine(ren, menu[2].rect.x+menu[2].rect.w/2, menu[2].rect.y+menu[2].rect.h/2,
-        (int)(menu[2].rect.w/2)*cos(fi)+menu[2].rect.x+menu[2].rect.w/2,
-        (int)(menu[2].rect.h/2)*sin(fi)+menu[2].rect.y+menu[2].rect.h/2);
+    SDL_RenderDrawLine(ren, menu[TETAWIN].rect.x+menu[TETAWIN].rect.w/2, menu[TETAWIN].rect.y+menu[TETAWIN].rect.h/2,
+        (int)(menu[TETAWIN].rect.w/2)*cos(teta)+menu[TETAWIN].rect.x+menu[TETAWIN].rect.w/2,
+        (int)(menu[TETAWIN].rect.h/2)*sin(teta)+menu[TETAWIN].rect.y+menu[TETAWIN].rect.h/2);
+    SDL_RenderDrawLine(ren, menu[FIWIN].rect.x+menu[FIWIN].rect.w/2, menu[FIWIN].rect.y+menu[FIWIN].rect.h/2,
+        (int)(menu[FIWIN].rect.w/2)*cos(fi)+menu[FIWIN].rect.x+menu[FIWIN].rect.w/2,
+        (int)(menu[FIWIN].rect.h/2)*sin(fi)+menu[FIWIN].rect.y+menu[FIWIN].rect.h/2);
+    SDL_RenderDrawLine(ren, menu[VUPWIN].rect.x+menu[VUPWIN].rect.w/2, menu[VUPWIN].rect.y+menu[VUPWIN].rect.h/2,
+        (int)(menu[VUPWIN].rect.w/2)*cos(fi)+menu[VUPWIN].rect.x+menu[VUPWIN].rect.w/2,
+        (int)(menu[VUPWIN].rect.h/2)*sin(fi)+menu[VUPWIN].rect.y+menu[VUPWIN].rect.h/2);
 }
 
 void draw_menu(RECT menu[], SDL_Renderer *ren, TTF_Font *font)
 {
     int i;
 
-    for( i=0 ; i<=10 ; i++ )
+    for( i=0 ; i<=11 ; i++ )
     {
         GC_DrawText(ren, font, 0, 0, 0, 0, 255, 255, 255, 0, menu[i].text,
             menu[i].rect.x, menu[i].rect.y, shaded);
@@ -283,7 +289,7 @@ void draw_mesh(SDL_Renderer *ren)
     for (k=0;k<nvert;k++)
     {
         trasf_view_up_vect(x[k], y[k], z[k], &xe, &ye, &ze);
-        //trasf_prosp_gen(&init,xe-csx,ye-csy,ze-csz,&xe,&ye,&ze);
+        //trasf_prosp_gen(&init,x[k]-csx,y[k]-csy,z[k]-csz,&xe,&ye,&ze);
         /* proiezione e trasformazione in coordinate schermo */
         xs[k] = (int)(Sx * ((di * xe)/ze - xwmin) + xvmin + 0.5);
         ys[k] = (int)(Sy * (ywmin - (di * ye)/ze) + yvmax + 0.5);
@@ -350,6 +356,10 @@ int main()
     bsub_v.y=sub_v.y-2;
     bsub_v.w=sub_v.w+4;
     bsub_v.h=sub_v.h+4;
+    view_up.x = 0;
+    view_up.y = 0;
+    view_up.z = 1;
+
 
     win= SDL_CreateWindow("View Cube Model", 0, 0, v.w, v.h, SDL_WINDOW_RESIZABLE);
     if(win==NULL){
@@ -381,7 +391,7 @@ int main()
     draw_menu(menu,ren,font);
     nvert = nedge = 0;
     define_cube();   /* determinazione mesh oggetto */
-    //define_pyramid();
+    define_pyramid();
     define_view();  /*calcolo dei parametri di vista */
     draw_mesh(ren);
 
@@ -413,35 +423,53 @@ int main()
             clicked_opt_menu(menu,11,myevent.motion.x,myevent.motion.y,&choice);
             switch(choice) {
             case TETAWIN:
-                tmpx = myevent.motion.x-(menu[1].rect.x+menu[1].rect.w/2); // ???
-                tmpy = myevent.motion.y-(menu[1].rect.y+menu[1].rect.h/2); // ???
+                tmpx = myevent.motion.x-(menu[TETAWIN].rect.x+menu[TETAWIN].rect.w/2);
+                tmpy = myevent.motion.y-(menu[TETAWIN].rect.y+menu[TETAWIN].rect.h/2);
                 teta = atan2(tmpy,tmpx);
                 // clear teta rect
                 SDL_SetRenderDrawColor(ren,255,255,255,255);
-                SDL_RenderFillRect(ren,&(menu[1].rect));
+                SDL_RenderFillRect(ren,&(menu[TETAWIN].rect));
                 SDL_SetRenderDrawColor(ren,0,0,0,255);
-                GC_DrawText(ren, font, 0, 0, 0, 0, 255, 255, 255, 0, menu[1].text,
-                    menu[1].rect.x, menu[1].rect.y, shaded);
-                SDL_RenderDrawRect(ren,&(menu[1].rect));
+                GC_DrawText(ren, font, 0, 0, 0, 0, 255, 255, 255, 0, menu[TETAWIN].text,
+                    menu[TETAWIN].rect.x, menu[TETAWIN].rect.y, shaded);
+                SDL_RenderDrawRect(ren,&(menu[TETAWIN].rect));
                 SDL_RenderDrawLine(ren, myevent.motion.x,myevent.motion.y,
-                    menu[1].rect.x+menu[1].rect.w/2,menu[1].rect.y+menu[1].rect.h/2);
+                    menu[TETAWIN].rect.x+menu[TETAWIN].rect.w/2,menu[TETAWIN].rect.y+menu[TETAWIN].rect.h/2);
 
                 refresh_scene(ren, &sub_v);
                 break;
 
             case FIWIN:
-                tmpx = myevent.motion.x-(menu[2].rect.x+menu[2].rect.w/2);
-                tmpy = myevent.motion.y-(menu[2].rect.y+menu[2].rect.h/2);
+                tmpx = myevent.motion.x-(menu[FIWIN].rect.x+menu[FIWIN].rect.w/2);
+                tmpy = myevent.motion.y-(menu[FIWIN].rect.y+menu[FIWIN].rect.h/2);
                 SDL_SetRenderDrawColor(ren,255,255,255,255);
-                SDL_RenderFillRect(ren,&(menu[2].rect));
+                SDL_RenderFillRect(ren,&(menu[FIWIN].rect));
                 SDL_SetRenderDrawColor(ren,0,0,0,255);
-                GC_DrawText(ren, font, 0, 0, 0, 0, 255, 255, 255, 0, menu[2].text,
-                    menu[2].rect.x, menu[2].rect.y, shaded);
-                SDL_RenderDrawRect(ren,&(menu[2].rect));
+                GC_DrawText(ren, font, 0, 0, 0, 0, 255, 255, 255, 0, menu[FIWIN].text,
+                    menu[FIWIN].rect.x, menu[FIWIN].rect.y, shaded);
+                SDL_RenderDrawRect(ren,&(menu[FIWIN].rect));
                 SDL_RenderDrawLine (ren, myevent.motion.x,myevent.motion.y,
-                    menu[2].rect.x+menu[2].rect.w/2,menu[2].rect.y+menu[2].rect.h/2);
+                    menu[FIWIN].rect.x+menu[FIWIN].rect.w/2,menu[FIWIN].rect.y+menu[FIWIN].rect.h/2);
 
                 fi = atan2(tmpy,tmpx);
+                refresh_scene(ren, &sub_v);
+                break;
+
+
+            case VUPWIN:
+                tmpx = myevent.motion.x-(menu[VUPWIN].rect.x+menu[VUPWIN].rect.w/2);
+                tmpy = myevent.motion.y-(menu[VUPWIN].rect.y+menu[VUPWIN].rect.h/2);
+                SDL_SetRenderDrawColor(ren,255,255,255,255);
+                SDL_RenderFillRect(ren,&(menu[VUPWIN].rect));
+                SDL_SetRenderDrawColor(ren,0,0,0,255);
+                GC_DrawText(ren, font, 0, 0, 0, 0, 255, 255, 255, 0, menu[VUPWIN].text,
+                    menu[VUPWIN].rect.x, menu[VUPWIN].rect.y, shaded);
+                SDL_RenderDrawRect(ren,&(menu[VUPWIN].rect));
+                SDL_RenderDrawLine (ren, myevent.motion.x,myevent.motion.y,
+                    menu[VUPWIN].rect.x+menu[VUPWIN].rect.w/2,menu[VUPWIN].rect.y+menu[VUPWIN].rect.h/2);
+
+                view_up.x = tmpx;
+                view_up.z = tmpy;
                 refresh_scene(ren, &sub_v);
                 break;
             }

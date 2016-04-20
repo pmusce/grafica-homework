@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "viewtransf.h"
 
+extern vec3 view_up;
+
 void calculate_vp(vec3 *vp) {
     vp->x = D * sin(fi) * cos(teta);
     vp->y = D * sin(fi) * sin(teta);
@@ -27,16 +29,16 @@ void calculate_xaxis(vec3 *u, vec3 *v, vec3 *xaxis) {
 }
 
 void calculate_yaxis(vec3 *u, vec3 *v, vec3 *yaxis) {
-    yaxis->x = -1 * (u->y * v->z - u->z * v->y);
-    yaxis->y = -1 * (u->z * v->x - u->x * v->z);
-    yaxis->z = -1 * (u->x * v->y - u->y * v->x);
+    yaxis->x = - (u->y * v->z - u->z * v->y);
+    yaxis->y = - (u->z * v->x - u->x * v->z);
+    yaxis->z = - (u->x * v->y - u->y * v->x);
     normalize_vect(yaxis);
 }
 
 void calculate_zaxis(vec3 *vp, vec3 *target, vec3 *zaxis) {
-    zaxis->x = -1 * (vp->x - target->x);
-    zaxis->y = -1 * (vp->y - target->y);
-    zaxis->z = -1 * (vp->z - target->z);
+    zaxis->x = - (vp->x - target->x);
+    zaxis->y = - (vp->y - target->y);
+    zaxis->z = - (vp->z - target->z);
     normalize_vect(zaxis);
 }
 
@@ -44,12 +46,7 @@ void trasf_view_up_vect(float x, float y, float z, float *xe, float *ye, float *
     vec3 xaxis, yaxis, zaxis;
     vec3 vp;
     vec3 target;
-    vec3 view_up;
     float M[4][4];
-
-    view_up.x = 0;
-    view_up.y = 1;
-    view_up.z = 0;
 
     target.x = csx;
     target.y = csy;
