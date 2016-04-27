@@ -23,10 +23,14 @@
 /* Dati per visualizzare un oggetto definito solo da vertici e lati*/
 float   x[MAXVERT],y[MAXVERT],z[MAXVERT];       /* coordinate vertici */
 int     edge[MAXEDGE][2];                       /* lista lati */
+
+#define CAMERA_VERTEX   4
+vec3 camera[CAMERA_VERTEX];
+
 int     nvert,nedge;                            /* numero vertici e lati */
 float   csx,csy,csz;                            /* centro oggetto */
-float   D = 25,teta = 1.57,fi = 20,di;
-vec3    view_up;
+float   D = 10,teta = 1.57,fi = 20,di;
+vec3    view_up, obs_vup;
 int     xs[MAXVERT],ys[MAXVERT];                /* coordinate schermo */
 
 int 	xvmin,xvmax,yvmin,yvmax;	/* coordinate viewport */
@@ -210,6 +214,29 @@ void define_pyramid() {
     add_edge(base_verts[3], top_vert);
 }
 
+void define_camera() {
+    vec3 xaxis, yaxis, zaxis;
+    vec3 target;
+
+    target.x = csx;
+    target.y = csy;
+    target.z = csz;
+
+    calculate_vp(&camera[0], D, teta, fi);
+    calculate_zaxis(&camera[0], &target, &zaxis);
+    camera[1].x = camera[0].x + zaxis.x;
+    camera[1].y = camera[0].y + zaxis.y;
+    camera[1].z = camera[0].z + zaxis.z;
+    calculate_xaxis(&zaxis, &view_up, &xaxis);
+    camera[2].x = camera[0].x + xaxis.x;
+    camera[2].y = camera[0].y + xaxis.y;
+    camera[2].z = camera[0].z + xaxis.z;
+    calculate_yaxis(&zaxis, &xaxis, &yaxis);
+    camera[3].x = camera[0].x + yaxis.x;
+    camera[3].y = camera[0].y + yaxis.y;
+    camera[3].z = camera[0].z + yaxis.z;
+}
+
 /* trasformazione prospettica a tre punti di fuga (generico punto di vista) */
 void trasf_prosp_gen(int *init,float x, float y, float z,
     float *xe, float *ye, float *ze)
@@ -267,13 +294,50 @@ void define_view()
     alpha=atan(s/D);
 }
 
-void draw_mesh(SDL_Renderer *ren)
+void draw_camera(SDL_Renderer *ren, float D, float teta, float fi, vec3 *view_up) {
+    int c1x, c1y, c2x, c2y;
+    float xe, ye, ze;
+
+    general_trasf_view_up_vect(camera[0].x-csx, camera[0].y-csy, camera[0].z-csz, &xe, &ye, &ze, D, teta, fi, view_up);
+    c1x = (int)(Sx * ((D * xe)/ze - xwmin) + xvmin + 0.5);
+    c1y = (int)(Sy * (ywmin - (D * ye)/ze) + yvmax + 0.5);
+
+    general_trasf_view_up_vect(camera[1].x-csx, camera[1].y-csy, camera[1].z-csz, &xe, &ye, &ze, D, teta, fi, view_up);
+    c2x = (int)(Sx * ((D * xe)/ze - xwmin) + xvmin + 0.5);
+    c2y = (int)(Sy * (ywmin - (D * ye)/ze) + yvmax + 0.5);
+    SDL_SetRenderDrawColor(ren,255,0,0,255);
+    SDL_RenderDrawLine(ren, c1x, c1y, c2x, c2y);
+
+    general_trasf_view_up_vect(camera[2].x-csx, camera[2].y-csy, camera[2].z-csz, &xe, &ye, &ze, D, teta, fi, view_up);
+    c2x = (int)(Sx * ((D * xe)/ze - xwmin) + xvmin + 0.5);
+    c2y = (int)(Sy * (ywmin - (D * ye)/ze) + yvmax + 0.5);
+    SDL_SetRenderDrawColor(ren,0,255,0,255);
+    SDL_RenderDrawLine(ren, c1x, c1y, c2x, c2y);
+
+    general_trasf_view_up_vect(camera[3].x-csx, camera[3].y-csy, camera[3].z-csz, &xe, &ye, &ze, D, teta, fi, view_up);
+    c2x = (int)(Sx * ((D * xe)/ze - xwmin) + xvmin + 0.5);
+    c2y = (int)(Sy * (ywmin - (D * ye)/ze) + yvmax + 0.5);
+    SDL_SetRenderDrawColor(ren,0,0,255,255);
+    SDL_RenderDrawLine(ren, c1x, c1y, c2x, c2y);
+
+}
+
+void draw_mesh(SDL_Renderer *ren, float D, float teta, float fi, int isObserver)
 {
-    int t,u,k,init;
+    int t,u,k;
     float xe,ye,ze;    /* coord. dell'osservatore */
+    vec3 *curr_vup;
+
+    s=D*tan(alpha);
+
+    if(isObserver) {
+        curr_vup = &obs_vup;
+        s = 10;
+    } else {
+        curr_vup = &view_up;
+    }
 
     /* si ricalcola il semilato della window in base a D e ad alpha */
-    s=D*tan(alpha);
     xwmin = -s ;
     xwmax = s;
     ywmin = -s;
@@ -285,10 +349,9 @@ void draw_mesh(SDL_Renderer *ren)
 
     /* il piano di proiezione viene definito a passare per l'origine */
     di=D;
-    init=1;
     for (k=0;k<nvert;k++)
     {
-        trasf_view_up_vect(x[k], y[k], z[k], &xe, &ye, &ze);
+        general_trasf_view_up_vect(x[k]-csx, y[k]-csy, z[k]-csz, &xe, &ye, &ze, D, teta, fi, curr_vup);
         //trasf_prosp_gen(&init,x[k]-csx,y[k]-csy,z[k]-csz,&xe,&ye,&ze);
         /* proiezione e trasformazione in coordinate schermo */
         xs[k] = (int)(Sx * ((di * xe)/ze - xwmin) + xvmin + 0.5);
@@ -303,20 +366,29 @@ void draw_mesh(SDL_Renderer *ren)
         SDL_RenderDrawLine(ren, xs[t],ys[t],xs[u],ys[u]);
     }
 
+    if(isObserver)
+        draw_camera(ren, D, teta, fi, curr_vup);
+
     SDL_RenderPresent(ren);
 }
 
-void refresh_scene(SDL_Renderer *ren, SDL_Rect *sub_v) {
+
+void refresh_scene(SDL_Renderer *ren, SDL_Renderer* obs_ren, SDL_Rect *sub_v) {
     SDL_SetRenderDrawColor(ren,255,255,255,255);
     SDL_RenderFillRect(ren, sub_v);
     SDL_SetRenderDrawColor(ren,0,0,0,255);
-    draw_mesh(ren);
+    SDL_SetRenderDrawColor(obs_ren,255,255,255,255);
+    SDL_RenderFillRect(obs_ren, sub_v);
+    SDL_SetRenderDrawColor(obs_ren,0,0,0,255);
+    define_camera();
+    draw_mesh(ren, D, teta, fi, 0);
+    draw_mesh(obs_ren, 50, 20, 20, 1);
 }
 
 int main()
 {
-    SDL_Window *win;
-    SDL_Renderer *ren;
+    SDL_Window *win, *wind;
+    SDL_Renderer *ren, *rend;
     SDL_Rect sub_v, v, bsub_v;
     TTF_Font *font;
     SDL_Event myevent;
@@ -356,9 +428,9 @@ int main()
     bsub_v.y=sub_v.y-2;
     bsub_v.w=sub_v.w+4;
     bsub_v.h=sub_v.h+4;
-    view_up.x = 0;
-    view_up.y = 0;
-    view_up.z = 1;
+    obs_vup.x = view_up.x = 0;
+    obs_vup.y = view_up.y = 0;
+    obs_vup.z = view_up.z = 1;
 
 
     win= SDL_CreateWindow("View Cube Model", 0, 0, v.w, v.h, SDL_WINDOW_RESIZABLE);
@@ -376,6 +448,23 @@ int main()
         return 1;
     }
 
+    // new window for drawing
+    wind= SDL_CreateWindow("Polygon", 100, 100, sub_v.w, sub_v.h, SDL_WINDOW_SHOWN);
+    if(wind==NULL){
+        fprintf(stderr,"SDL_CreateWindow Error: %s\n",SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+    rend = SDL_CreateRenderer(wind, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (rend == NULL){
+        SDL_DestroyWindow(wind);
+        fprintf(stderr,"SDL_CreateRenderer Error: %s\n",SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+    SDL_SetRenderDrawColor(rend, 255, 255, 255, 255);
+    SDL_RenderClear(rend);
+    SDL_RenderPresent(rend);
 
     //Set color
     SDL_SetRenderDrawColor(ren,255,255,255,255);
@@ -393,7 +482,7 @@ int main()
     define_cube();   /* determinazione mesh oggetto */
     define_pyramid();
     define_view();  /*calcolo dei parametri di vista */
-    draw_mesh(ren);
+    refresh_scene(ren, rend, &sub_v);
 
     //Disegnare tutte le volte, anche per eventi intermedi,
     //rallenta tutto senza dare un contributo all'immagine finale.
@@ -416,7 +505,7 @@ int main()
             if(isInViewport(&sub_v, myevent.motion.x, myevent.motion.y)) {
                 teta -= 0.01 * myevent.motion.xrel;
                 fi -= 0.01 * myevent.motion.yrel;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
             }
 
@@ -436,7 +525,7 @@ int main()
                 SDL_RenderDrawLine(ren, myevent.motion.x,myevent.motion.y,
                     menu[TETAWIN].rect.x+menu[TETAWIN].rect.w/2,menu[TETAWIN].rect.y+menu[TETAWIN].rect.h/2);
 
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
 
             case FIWIN:
@@ -452,7 +541,7 @@ int main()
                     menu[FIWIN].rect.x+menu[FIWIN].rect.w/2,menu[FIWIN].rect.y+menu[FIWIN].rect.h/2);
 
                 fi = atan2(tmpy,tmpx);
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
 
 
@@ -470,7 +559,7 @@ int main()
 
                 view_up.x = tmpx;
                 view_up.z = tmpy;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
             }
             break;
@@ -490,7 +579,7 @@ int main()
                 ssy=cos(teta);
                 csx-=sr*ssx;
                 csy-=sr*ssy;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
 
             case LEFTWIN:
@@ -498,7 +587,7 @@ int main()
                 ssy=cos(teta);
                 csx+=sr*ssx;
                 csy+=sr*ssy;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
 
             case UPWIN:
@@ -508,7 +597,7 @@ int main()
                 csx+=sr*ssx;
                 csy+=sr*ssy;
                 csz+=sr*ssz;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
 
             case DOWNWIN:
@@ -518,30 +607,30 @@ int main()
                 csx-=sr*ssx;
                 csy-=sr*ssy;
                 csz-=sr*ssz;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
 
             case ZIWIN:
                 if (alpha-salpha >0)
                     alpha-=salpha;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
 
             case ZOWIN:
                 if (alpha+salpha <1.57)
                     alpha+=salpha;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
 
             case DZIWIN:
                 if (D-Dstep>0)
                     D-=Dstep;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
 
             case DZOWIN:
                 D+=Dstep;
-                refresh_scene(ren, &sub_v);
+                refresh_scene(ren, rend, &sub_v);
                 break;
             }
             break;

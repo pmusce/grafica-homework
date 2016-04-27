@@ -4,7 +4,7 @@
 
 extern vec3 view_up;
 
-void calculate_vp(vec3 *vp) {
+void calculate_vp(vec3 *vp, float D, float teta, float fi) {
     vp->x = D * sin(fi) * cos(teta);
     vp->y = D * sin(fi) * sin(teta);
     vp->z = D * cos(fi);
@@ -43,6 +43,10 @@ void calculate_zaxis(vec3 *vp, vec3 *target, vec3 *zaxis) {
 }
 
 void trasf_view_up_vect(float x, float y, float z, float *xe, float *ye, float *ze) {
+    //general_trasf_view_up_vect(x, y, z, xe, ye, ze, D, teta, fi);
+}
+
+void general_trasf_view_up_vect(float x, float y, float z, float *xe, float *ye, float *ze, float D, float teta, float fi, vec3 *view_up) {
     vec3 xaxis, yaxis, zaxis;
     vec3 vp;
     vec3 target;
@@ -52,9 +56,9 @@ void trasf_view_up_vect(float x, float y, float z, float *xe, float *ye, float *
     target.y = csy;
     target.z = csz;
 
-    calculate_vp(&vp);
+    calculate_vp(&vp, D, teta, fi);
     calculate_zaxis(&vp, &target, &zaxis);
-    calculate_xaxis(&zaxis, &view_up, &xaxis);
+    calculate_xaxis(&zaxis, view_up, &xaxis);
     calculate_yaxis(&zaxis, &xaxis, &yaxis);
 
  /* A */
