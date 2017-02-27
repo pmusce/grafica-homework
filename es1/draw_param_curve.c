@@ -113,11 +113,11 @@ void strange_function(float t, float *x, float *y) {
 	int a, b, c, d, j, k;
 	j = 3;
 	k = 4;
-	
+
 	a = 1;
 	b = 80;
-	c = 1;
-	d = 80;
+	c = 80;
+	d = 1;
 
 	*x = cos(a * 2*M_PI*t) - pow(cos(b * 2*M_PI*t), j);
 	*y = sin(c * 2*M_PI*t) - pow(sin(d * 2*M_PI*t), k);
@@ -159,9 +159,9 @@ void adapt_window(int n, WINDOW* rect, float x[], float y[]) {
 	h = rect->ymax - rect->ymin;
 
 	data_ratio = w / h;
-	viewport_ratio =  (float)PLOT_WIDTH / PLOT_HEIGHT;	
+	viewport_ratio =  (float)PLOT_WIDTH / PLOT_HEIGHT;
 
-	if(data_ratio > viewport_ratio) {	
+	if(data_ratio > viewport_ratio) {
 		// Allarga altezza
 		diff = ((w / PLOT_WIDTH * PLOT_HEIGHT)	 - h ) / 2;
 		rect->ymax += diff;
@@ -192,7 +192,7 @@ void get_data(void (*functionPtr)(float, float*, float*), int n, WINDOW* rect, f
 int main(int argc, char const *argv[])
 {
 	SDL_Window *win;
-	SDL_Renderer *ren;	
+	SDL_Renderer *ren;
 	TTF_Font *font;
 	SDL_Rect sub_v, v;
 	VIEWPORT fun_view;
@@ -209,7 +209,7 @@ int main(int argc, char const *argv[])
 	sub_v.x = v.x + 10;
 	sub_v.y = v.y + 10;
 	sub_v.w = PLOT_WIDTH;
-	sub_v.h = PLOT_HEIGHT;	
+	sub_v.h = PLOT_HEIGHT;
 
 	// viewport della funzione da disegnare con coordinate min/max della x e y
 	fun_view.xmin = sub_v.x;
@@ -228,7 +228,7 @@ int main(int argc, char const *argv[])
 
  		printf("Scegli funzione (1-4): ");
 		scanf("%d", &plotting_fun);
- 
+
  		switch(plotting_fun) {
 			case 1:
 				get_data(&parabole, n, &fun_win, x, y);
@@ -251,7 +251,7 @@ int main(int argc, char const *argv[])
 		draw_data (ren, n, fun_view, fun_win, x, y);
 
 		SDL_RenderPresent(ren);
-		
+
 		printf ("\n <e> EXIT   <f> NEW DATA  ");
 		while(getchar() != '\n');
 		scanf ("%c", &ch);
