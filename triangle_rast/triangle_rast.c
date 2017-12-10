@@ -1,12 +1,10 @@
 #include "triangle_rast.h"
 
-int             polx[5],poly[5];
+int             	polx[3],poly[3];
 extern int             edges , startedge , endedge , scandec;
 extern float           scan;
 
-EdgeTable edge_table[10];
-
-EdgeTable active_et[2];
+EdgeTable edge_table[3];
 
 /*                                                                    */
 /*                          POLYINSERT                                */
@@ -21,9 +19,9 @@ void polyinsert(int edges,float x1,float y1,float x2,float y2)
 	int j;
 	float   ym;
 
-	j=edges;
+	j=edges-1;
 	ym = MAX(y1, y2);
-	while ((j != 1) && (edge_table[j-1].yymax < ym))
+	while ((j != 0) && (edge_table[j-1].yymax < ym))
 	{
 		edge_table[j].yymax = edge_table[j-1].yymax;
 		edge_table[j].yymin = edge_table[j-1].yymin;
@@ -45,7 +43,8 @@ void polyinsert(int edges,float x1,float y1,float x2,float y2)
 		edge_table[j].xa=x2;
 	}
 
-	printf("ET %d: %f %f %f %f\n", j, edge_table[j].yymax, edge_table[j].dx, edge_table[j].yymin, edge_table[j].xa );
+	for(j=0; j<edges; j++)
+		printf("ET %d: %f %f %f %f\n", j, edge_table[j].yymax, edge_table[j].dx, edge_table[j].yymin, edge_table[j].xa );
 }
 /* polyinsert */
 
@@ -202,9 +201,9 @@ void scanconv(SDL_Renderer *ren, int n)
 	loadpol(n);
 	if (edges > 1)
 	{
-		scan=edge_table[1].yymax-0.5;
-		startedge=1;
-		endedge=1;
+		scan=edge_table[0].yymax-0.5;
+		startedge=0;
+		endedge=0;
 		includ();
 		updatexvalues();
 		while (endedge != startedge)
